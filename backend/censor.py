@@ -1,5 +1,7 @@
 import re
+import os
 import logging
+import httpx
 
 logger = logging.getLogger("shalim.censor")
 
@@ -17,17 +19,27 @@ class CensorModel:
         self.pipeline = None
         self.model_name = "facebook/roberta-hate-speech-dynabench-to-decisive-sensation"
         self.initialized = False
+        self.use_api = False
+        self.api_token = None
         
     def initialize(self):
+        # Check if Hugging Face API token is provided in the environment
+        self.api_token = os.getenv("HF_API_TOKEN") or os.getenv("HF_TOKEN")
+        
+        if self.api_token:
+            logger.info("HF_API_TOKEN detected. Configuring TinyCensor to use Hugging Face Serverless Inference API (Cloud).")
+            self.use_api = True
+            self.initialized = True
+            return
+
         try:
-            logger.info(f"Loading TinyCensor RoBERTa model ({self.model_name})...")
+            logger.info(f"Loading TinyCensor RoBERTa model ({self.model_name}) locally on CPU...")
             from transformers import pipeline
-            # Using hate-speech classification pipeline
             self.pipeline = pipeline("text-classification", model=self.model_name, device=-1) # -1 is CPU
             self.initialized = True
-            logger.info("TinyCensor RoBERTa model loaded successfully.")
+            logger.info("TinyCensor RoBERTa model loaded successfully locally.")
         except Exception as e:
-            logger.warning(f"Failed to load TinyCensor RoBERTa model: {e}. Falling back to rule-based Censor.")
+            logger.warning(f"Failed to load TinyCensor RoBERTa model locally: {e}. Falling back to rule-based Censor.")
             self.pipeline = None
             self.initialized = False
 
@@ -51,35 +63,80 @@ class CensorModel:
                     "reason": f"Flagged by safety rules (matched keyword pattern)"
                 }
 
-        # If RoBERTa model is initialized, use it
-        if self.initialized and self.pipeline:
+        # 1. Use Hugging Face Inference API if configured
+        if self.use_api and self.api_token:
+            try:
+                headers = {"Authorization": f"Bearer {self.api_token}"}
+                api_url = f"https://api-inference.huggingface.co/models/{self.model_name}"
+                
+                response = httpx.post(api_url, headers=headers, json={"inputs": text}, timeout=10.0)
+                if response.status_code == 200:
+                    res = response.json()
+                    
+                    # Unpack list of lists if returned
+                    if isinstance(res, list) and len(res) > 0:
+                        if isinstance(res[0], list):
+                            res = res[0]
+                        
+                        is_problematic = False
+                        max_hate_score = 0.0
+                        label_name = "nothate"
+                        
+                        for pred in res:
+                            label = pred.get("label", "").lower()
+                            score = float(pred.get("score", 0.0))
+                            if label in ["hate", "class 1", "label_1"]:
+                                max_hate_score = score
+                                if score > 0.5:
+                                    is_problematic = True
+                                    label_name = label
+                        
+                        if is_problematic:
+                            logger.warning(f"TinyCensor API Match: Text flagged with score {max_hate_score:.2f}")
+                            return {
+                                "is_problematic": True,
+                                "score": max_hate_score,
+                                "method": "huggingface_api",
+                                "reason": f"Flagged by TinyCensor API (hate - {max_hate_score:.1%})"
+                            }
+                        else:
+                            return {
+                                "is_problematic": False,
+                                "score": 1.0 - max_hate_score,
+                                "method": "huggingface_api",
+                                "reason": "Passed TinyCensor API checks"
+                            }
+                else:
+                    logger.error(f"HF Inference API returned status {response.status_code}: {response.text}. Using rule-based fallback.")
+            except Exception as e:
+                logger.error(f"Error during Hugging Face API call: {e}. Using rule-based fallback.")
+
+        # 2. Use Local Pipeline if initialized
+        if self.pipeline:
             try:
                 res = self.pipeline(text)[0]
                 label = res["label"] # label is 'hate' or 'nothate'
                 score = res["score"]
                 
-                # In facebook/roberta-hate-speech, 'hate' means problematic content
-                # label 'hate' corresponds to class 1
                 is_problematic = label.lower() in ["hate", "class 1", "label_1"]
                 
-                # If confidence is high enough
                 if is_problematic and score > 0.5:
                     logger.warning(f"TinyCensor RoBERTa Match: Text flagged with score {score:.2f}")
                     return {
                         "is_problematic": True,
                         "score": float(score),
-                        "method": "roberta",
-                        "reason": f"Flagged by TinyCensor AI ({label} - {score:.1%})"
+                        "method": "roberta_local",
+                        "reason": f"Flagged by TinyCensor Local ({label} - {score:.1%})"
                     }
                 else:
                     return {
                         "is_problematic": False,
                         "score": float(score) if is_problematic else 1.0 - float(score),
-                        "method": "roberta",
-                        "reason": "Passed TinyCensor AI checks"
+                        "method": "roberta_local",
+                        "reason": "Passed TinyCensor local checks"
                     }
             except Exception as e:
-                logger.error(f"Error during TinyCensor RoBERTa inference: {e}. Using rule-based fallback pass.")
+                logger.error(f"Error during local RoBERTa inference: {e}. Using rule-based fallback.")
         
         # Default pass if no matches found
         return {
@@ -90,3 +147,4 @@ class CensorModel:
         }
 
 censor = CensorModel()
+
