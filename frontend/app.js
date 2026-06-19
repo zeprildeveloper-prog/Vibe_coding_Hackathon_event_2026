@@ -789,17 +789,17 @@ function showAlert(message, type = "info") {
     // We can show dynamic toast popups or inline logs
     console.log(`[Shalim Alert] ${type.toUpperCase()}: ${message}`);
     
+    // Check if container exists, otherwise create it
+    let container = document.getElementById("alert-container");
+    if (!container) {
+        container = document.createElement("div");
+        container.id = "alert-container";
+        document.body.appendChild(container);
+    }
+    
     // Create a toast notification
-    const container = document.body;
     const toast = document.createElement("div");
     toast.className = `alert-banner ${type === 'danger' ? '' : 'info'}`;
-    toast.style.position = "fixed";
-    toast.style.bottom = "20px";
-    toast.style.right = "20px";
-    toast.style.zIndex = "9999";
-    toast.style.maxWidth = "400px";
-    toast.style.boxShadow = "0 8px 24px rgba(0,0,0,0.5)";
-    toast.style.animation = "modalSlideUp 0.2s ease-out";
     
     let icon = "fa-info-circle";
     if (type === 'danger') icon = "fa-circle-exclamation";
