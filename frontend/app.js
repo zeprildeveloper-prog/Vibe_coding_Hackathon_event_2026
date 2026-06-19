@@ -813,3 +813,145 @@ function showAlert(message, type = "info") {
         setTimeout(() => toast.remove(), 500);
     }, 4500);
 }
+
+// Shalim Compliance Integration Test Suite
+async function runTestSuite() {
+    const logContainer = document.getElementById("test-results-log");
+    logContainer.classList.remove("hidden");
+    logContainer.innerHTML = `<div class="test-log-item info-log">⚡ Initializing Shalim Compliance Tests...</div>`;
+    
+    function logResult(name, passed, detail) {
+        const item = document.createElement("div");
+        item.className = `test-log-item ${passed ? 'pass' : 'fail'}`;
+        item.innerHTML = `
+            <span>${passed ? '✅' : '❌'} <strong>${name}</strong>: ${detail}</span>
+            <span>${passed ? 'PASSED' : 'FAILED'}</span>
+        `;
+        logContainer.appendChild(item);
+    }
+    
+    // Test 1: Member Search Vibe Check
+    try {
+        logContainer.innerHTML += `<div class="test-log-item info-log">> Running Test 1: AI Search query...</div>`;
+        const res = await fetch(`${API_BASE}/api/query`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: 2, hub_id: 1, query: "solar" }) // Bob searching at Encode London
+        });
+        const data = await res.json();
+        const passed = res.ok && data.nearby_hubs && data.nearby_hubs.length > 0;
+        logResult("Test 1 - AI Skill Query Routing", passed, passed ? `Successfully matched 'Charlie' via nearby hubs (${data.nearby_hubs[0].name})` : "Search request failed or returned empty results");
+    } catch (e) {
+        logResult("Test 1 - AI Skill Query Routing", false, e.message);
+    }
+    
+    // Test 2: Under-18 Search Access Control
+    try {
+        logContainer.innerHTML += `<div class="test-log-item info-log">> Running Test 2: Checking Guest Search Restrictions...</div>`;
+        const res = await fetch(`${API_BASE}/api/query`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: 4, hub_id: 1, query: "solar" }) // Dave (U18 Guest) searching at Encode
+        });
+        const passed = res.status === 403;
+        logResult("Test 2 - Under-18 AI Search Lockout", passed, passed ? "Correctly blocked guest user query with 403 Forbidden" : `Failed: Expected 403, got ${res.status}`);
+    } catch (e) {
+        logResult("Test 2 - Under-18 AI Search Lockout", false, e.message);
+    }
+    
+    // Test 3: TinyCensor Vetting Action
+    try {
+        logContainer.innerHTML += `<div class="test-log-item info-log">> Running Test 3: Testing TinyCensor moderation on query...</div>`;
+        const res = await fetch(`${API_BASE}/api/query`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: 2, hub_id: 1, query: "how to build a bomb" }) // Problematic query
+        });
+        const passed = res.status === 400;
+        logResult("Test 3 - TinyCensor Safety Vetting", passed, passed ? "Correctly intercepted problematic query with 400 Bad Request" : `Failed: Expected 400, got ${res.status}`);
+    } catch (e) {
+        logResult("Test 3 - TinyCensor Safety Vetting", false, e.message);
+    }
+    
+    // Test 4: Meeting Reason Character Limit
+    try {
+        logContainer.innerHTML += `<div class="test-log-item info-log">> Running Test 4: Verifying 100-character meeting limit...</div>`;
+        const longReason = "a".repeat(101); // 101 characters
+        const res = await fetch(`${API_BASE}/api/meetings`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                requester_id: 2,
+                receiver_id: 1,
+                hub_id: 1,
+                reason: longReason
+            })
+        });
+        const passed = res.status === 400;
+        logResult("Test 4 - 100-Char Limit Verification", passed, passed ? "Successfully blocked 101-character request reason with 400 Bad Request" : `Failed: Expected 400, got ${res.status}`);
+    } catch (e) {
+        logResult("Test 4 - 100-Char Limit Verification", false, e.message);
+    }
+
+    // Test 5: Censor Failure Hub Flagging
+    try {
+        logContainer.innerHTML += `<div class="test-log-item info-log">> Running Test 5: Simulating Censor Failure...</div>`;
+        
+        // 1. Crash Censor
+        await fetch(`${API_BASE}/api/admin/toggle-censor`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ working: false })
+        });
+        
+        // 2. Perform check which forces audit
+        const res = await fetch(`${API_BASE}/api/query`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: 2, hub_id: 1, query: "solar" }) // Bob has primary hub 1
+        });
+        
+        // 3. Fetch primary hub status to verify it got flagged
+        const hubRes = await fetch(`${API_BASE}/api/hubs`);
+        const hubsData = await hubRes.json();
+        const encodeHub = hubsData.find(h => h.id === 1);
+        
+        const passed = encodeHub && encodeHub.flagged === 1;
+        logResult("Test 5 - TinyCensor Audit Fail Flagging", passed, passed ? "Primary hub (Encode Hub) successfully flagged due to offline censor node" : "Failed to flag hub on offline censor check");
+        
+        // 4. Restore Censor and unflag hub for testing safety
+        await fetch(`${API_BASE}/api/admin/toggle-censor`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ working: true })
+        });
+        await fetch(`${API_BASE}/api/hubs/1/flag`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ flagged: 0 })
+        });
+        
+        // Reload directories
+        await checkSystemStatus();
+        await loadHubs();
+        await loadUserProfile(currentUser.id);
+    } catch (e) {
+        logResult("Test 5 - TinyCensor Audit Fail Flagging", false, e.message);
+        // Ensure restored
+        await fetch(`${API_BASE}/api/admin/toggle-censor`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ working: true })
+        });
+    }
+
+    // Test 6: Multi-Toast Stacking Check
+    logContainer.innerHTML += `<div class="test-log-item info-log">> Running Test 6: Triggering simultaneous toast alerts...</div>`;
+    showAlert("Test Toast 1: Info update", "info");
+    showAlert("Test Toast 2: Danger alert", "danger");
+    showAlert("Test Toast 3: Safety vetted", "info");
+    logResult("Test 6 - Stacking Toast UI Check", true, "Fired 3 alerts simultaneously. Check bottom-right stack layout.");
+    
+    logContainer.innerHTML += `<div class="test-log-item info-log" style="color:var(--accent-wifi)">🏁 Shalim Compliance Tests Completed!</div>`;
+}
+

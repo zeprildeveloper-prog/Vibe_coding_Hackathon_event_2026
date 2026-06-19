@@ -999,7 +999,7 @@ input:checked + .slider:before {
     right: 20px;
     z-index: 10000;
     display: flex;
-    flex-direction: column; /* Stack vertically */
+    flex-direction: column-reverse; /* Stacks upwards starting from bottom */
     gap: 10px;
     max-width: 400px;
     width: 100%;
@@ -1017,4 +1017,30 @@ input:checked + .slider:before {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* Automated Test Suite Log styling */
+.test-results-log {
+    background-color: #0b0c0e;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: monospace;
+    font-size: 0.85rem;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.test-log-item {
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    padding-bottom: 0.25rem;
+}
+
+.test-log-item.pass { color: var(--accent-wifi); }
+.test-log-item.fail { color: var(--accent-danger); }
+.test-log-item.info-log { color: var(--text-secondary); }
+
 
