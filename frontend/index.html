@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shalim - Local Knowledge Redundancy App</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-radio"></i>
+                </div>
+                <div>
+                    <h1>Shalim</h1>
+                    <span class="tagline">Resilient Local Topology</span>
+                </div>
+            </div>
+
+            <!-- Network Topology Status -->
+            <div class="status-panel">
+                <h3><i class="fa-solid fa-circle-nodes"></i> Transmission Mesh</h3>
+                
+                <div class="network-selector">
+                    <button class="net-btn active" id="net-lora" onclick="setNetwork('lora')">
+                        <i class="fa-solid fa-circle-dot"></i> LoRa Mesh
+                    </button>
+                    <button class="net-btn" id="net-wifi" onclick="setNetwork('wifi')">
+                        <i class="fa-solid fa-wifi"></i> Hub WiFi
+                    </button>
+                    <button class="net-btn" id="net-5g" onclick="setNetwork('5g')">
+                        <i class="fa-solid fa-tower-cell"></i> 5G / Cloud
+                    </button>
+                </div>
+
+                <div class="status-indicator">
+                    <span class="status-dot healthy" id="status-dot"></span>
+                    <span class="status-text" id="status-text">LoRa Mesh Node: ACTIVE</span>
+                </div>
+            </div>
+
+            <!-- Simulation Controls -->
+            <div class="sim-panel">
+                <h3><i class="fa-solid fa-sliders"></i> Hackathon Simulation</h3>
+                
+                <div class="form-group">
+                    <label for="user-select">Act As User:</label>
+                    <select id="user-select" onchange="switchUser()">
+                        <!-- Loaded dynamically -->
+                    </select>
+                </div>
+
+                <div class="censor-switch-box">
+                    <div class="censor-details">
+                        <span class="censor-title">TinyCensor AI (RoBERTa)</span>
+                        <span class="censor-desc" id="censor-desc">Status: HEALTHY</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="censor-toggle" checked onchange="toggleCensor()">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Hub Selector -->
+            <div class="hubs-panel">
+                <h3><i class="fa-solid fa-house-medical"></i> Verified Hub Directory</h3>
+                <div class="hubs-list" id="hubs-list">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <span>Shalim v1.0.0-resilient</span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="app-header">
+                <div class="user-badge" id="active-user-badge">
+                    <!-- Loaded dynamically -->
+                </div>
+                
+                <div class="current-hub-banner" id="current-hub-banner">
+                    <!-- Loaded dynamically -->
+                </div>
+            </header>
+
+            <!-- Dashboard Body -->
+            <div class="dashboard-body">
+                <!-- User Notification Banner -->
+                <div id="alert-banner" class="alert-banner hidden"></div>
+
+                <!-- ROLE VIEW: MEMBER -->
+                <section id="view-member" class="role-view">
+                    <div class="query-section">
+                        <h2><i class="fa-solid fa-sparkles"></i> AI Knowledge Search (Qwen2.5)</h2>
+                        <p class="section-desc">Query the local network mesh for skills. Browse is disabled for privacy; results are recommended based on your request.</p>
+                        
+                        <div class="search-box">
+                            <input type="text" id="search-query" placeholder="e.g. I need to install solar panels on my balcony or find someone who knows first aid..." onkeydown="handleSearchKey(event)">
+                            <button class="btn-primary" onclick="executeSearch()"><i class="fa-solid fa-magnifying-glass"></i> Ask Shalim AI</button>
+                        </div>
+                    </div>
+
+                    <div class="search-results-container hidden" id="search-results-container">
+                        <h3>Search Results</h3>
+                        
+                        <!-- Matched Hub Members -->
+                        <div class="results-group">
+                            <h4 class="group-title"><i class="fa-solid fa-users"></i> Recommended Members (Direct Meetup)</h4>
+                            <div class="profiles-grid" id="matched-members-list">
+                                <!-- Loaded dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Matched Surrounding Hubs -->
+                        <div class="results-group mt-4">
+                            <h4 class="group-title"><i class="fa-solid fa-map-location-dot"></i> Surrounding Hubs with Skill (5-10 mile radius)</h4>
+                            <div class="hubs-grid-small" id="nearby-hubs-list">
+                                <!-- Loaded dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hub Resources -->
+                    <div class="resources-section mt-4">
+                        <div class="section-header">
+                            <h3><i class="fa-solid fa-book-atlas"></i> Hub Resource Catalog</h3>
+                            <span class="badge">Local Catalog</span>
+                        </div>
+                        <p class="section-desc">Interact with tools, textbooks, and catalogs to acquire skills on-premises.</p>
+                        <div class="resources-grid" id="member-resources-list">
+                            <!-- Loaded dynamically -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ROLE VIEW: GUEST / UNDER-18 -->
+                <section id="view-guest" class="role-view hidden">
+                    <div class="guest-card-warning">
+                        <div class="warning-icon"><i class="fa-solid fa-lock"></i></div>
+                        <div>
+                            <h2>Guest Privileges Only</h2>
+                            <p id="guest-reason-text">You are browsing as a guest. Guests cannot perform AI searches or browse member listings to protect community safety.</p>
+                            <div class="guest-actions mt-2" id="guest-register-area">
+                                <button class="btn-primary" onclick="openMeetingModal(null, true)">
+                                    <i class="fa-solid fa-address-card"></i> Request Meeting with Admin to Verify
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hub Resources for Guests -->
+                    <div class="resources-section mt-4">
+                        <div class="section-header">
+                            <h3><i class="fa-solid fa-book-atlas"></i> Hub Resource Catalog</h3>
+                            <span class="badge">Guest Access</span>
+                        </div>
+                        <p class="section-desc">You can learn skills by studying resources available in this hub.</p>
+                        <div class="resources-grid" id="guest-resources-list">
+                            <!-- Loaded dynamically -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ROLE VIEW: ADMIN -->
+                <section id="view-admin" class="role-view hidden">
+                    <div class="admin-dashboard-grid">
+                        <!-- Hub Stats -->
+                        <div class="admin-card stats-card">
+                            <h3>Hub Stats</h3>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <span class="stat-val" id="stat-members-count">0</span>
+                                    <span class="stat-lbl">Registered Members</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-val" id="stat-resources-count">0</span>
+                                    <span class="stat-lbl">Active Resources</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Resource Importer -->
+                        <div class="admin-card resource-adder">
+                            <h3>Add Resource & Collate Skills</h3>
+                            <p class="card-desc">Add a resource. Shalim AI will automatically derive acquired skills from it.</p>
+                            <div class="form-grid">
+                                <input type="text" id="res-title" placeholder="Resource Title (e.g. Ham Radio Guide)">
+                                <input type="text" id="res-desc" placeholder="Brief description of the material/contents">
+                                <select id="res-type">
+                                    <option value="book">Book/Manual</option>
+                                    <option value="tool">Toolbox/Supply</option>
+                                    <option value="radio">Comms Gear</option>
+                                    <option value="medical">Medical Kit</option>
+                                </select>
+                                <button class="btn-primary" onclick="addResource()"><i class="fa-solid fa-plus"></i> Process & Add</button>
+                            </div>
+                            
+                            <div class="catalog-upload mt-3">
+                                <h4>Batch Database Import</h4>
+                                <button class="btn-secondary" onclick="simulateCatalogImport()">
+                                    <i class="fa-solid fa-file-import"></i> Import Library Catalog (CSV)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Member Registry -->
+                    <div class="admin-card mt-4">
+                        <h3><i class="fa-solid fa-id-card"></i> Hub Members Registry</h3>
+                        <p class="card-desc">Full visibility of verified members. ONLY Admins possess this directory access.</p>
+                        <div class="table-responsive">
+                            <table class="members-table">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Age</th>
+                                        <th>Hub Status</th>
+                                        <th>Skills Acquired</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-members-list">
+                                    <!-- Loaded dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Shared Dashboard Element: Meetings Console -->
+                <div class="meetings-console mt-4">
+                    <h3><i class="fa-solid fa-handshake"></i> Meetings Scheduler</h3>
+                    <p class="section-desc">Shalim has no messaging protocol. To connect, request a physical meetup at the verified hub address.</p>
+                    <div class="meetings-grid" id="meetings-list">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal: Request Meeting -->
+    <div id="meeting-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Request Connection Meeting</h3>
+                <span class="close-btn" onclick="closeMeetingModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="modal-prompt-text">Write a reason for requesting this meeting (Max 100 characters). This will be vetted by TinyCensor AI.</p>
+                <div class="form-group">
+                    <textarea id="meeting-reason" maxlength="100" rows="3" placeholder="e.g. Need assistance setting up basic wire antenna this Saturday at 2pm." oninput="updateCharCount()"></textarea>
+                    <div class="char-counter"><span id="char-count">0</span> / 100</div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeMeetingModal()">Cancel</button>
+                    <button class="btn-primary" id="btn-submit-meeting" onclick="submitMeetingRequest()">Send Request</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Custom JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>

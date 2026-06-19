@@ -1,0 +1,23 @@
+# Virtual Environment
+venv/
+ENV/
+env/
+.env
+.env.local
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Databases
+backend/shalim.db
+*.db
+*.sqlite3
+
+# OS / Editor Files
+.DS_Store
+.vscode/
+.idea/
+.gemini/
+.cagent/
