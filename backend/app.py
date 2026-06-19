@@ -85,13 +85,14 @@ def check_tiny_censor_health(conn, source_hub_id: int = None):
     If NOT working, the originating hub is immediately flagged!
     """
     global censor_working
-    if not censor_working or not censor.initialized:
+    if not censor_working:
         if source_hub_id:
             conn.execute("UPDATE hubs SET flagged = 1 WHERE id = ?", (source_hub_id,))
             conn.commit()
             logger.error(f"TinyCensor failure detected! Hub #{source_hub_id} has been FLAGGED. All members demoted.")
         return False
     return True
+
 
 # --- API Models ---
 
